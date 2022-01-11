@@ -80,7 +80,7 @@ class yoloBBs:
         out_shape = im.shape # output shape
         xrs = in_shape[1]/out_shape[3] #x resize factor
         yrs = in_shape[0]/out_shape[2] # resize factor
-        pred = np.array([list(map(float, (bb[0]*xrs, bb[1]*yrs, bb[2]*xrs, bb[3]*yrs, bb[4]))) for bb in pred[0]])
+        pred = np.array([list(map(float, (bb[0]*xrs, bb[1]*yrs, bb[2]*xrs, bb[3]*yrs, bb[4], bb[5]))) for bb in pred[0]])
         return pred
 
        
