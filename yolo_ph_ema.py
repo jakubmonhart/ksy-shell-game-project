@@ -1,143 +1,166 @@
 import cv2
-import numpy as np
 import sys
 import argparse
-import matplotlib.pyplot as plt
+import numpy as np
+
 from yolov5.getBBs import yoloBBs
-import numpy as np 
 
-ALPHA_V = 0.8
-ALPHA_A = ALPHA_V
-CUP_ID = 41
-BALL_ID = 32
+# Method parameters
+ALPHA_V = 0.8       # EMA constant for VEL
+ALPHA_A = ALPHA_V   # EMA constant for ACC
+CUP_ID = 41         # "cup" in yolo output
+BALL_ID = 32        # "ball" in yolo output
+USE_ACC = False     # Whether accuracy should be used
 
-def run_tracking(video_path, tracker_type):
-  vels = []
-  poss = []  
-  accs = []
- 
-  video = cv2.VideoCapture(video_path)
 
-  if (video.isOpened()== False):
-    print("Error opening video file")
-    sys.exit()
+def run_tracking(video_path: str, visualize: bool = False):
+    # Value history
+    vels = []
+    poss = []
+    accs = []
 
-  # Read until frame.
-  ret, frame = video.read()
-  if ret==False:
-    print("Cannot read video file")
-    sys.exit()
+    # Load video and ensure it was opened correctly
+    video = cv2.VideoCapture(video_path)
 
-  bbGetter = yoloBBs()
+    if not video.isOpened():
+        print("Error opening video file")
+        sys.exit()
 
-  bboxes = bbGetter.getBBs(frame)
-  NUM_CUPS = len(bboxes[bboxes[:,5]==CUP_ID])
-  prev_pos = np.column_stack([bboxes[:,0]/2 + bboxes[:,2]/2,bboxes[:,1]/2 + bboxes[:,3]/2])
-  prev_vel = np.zeros(prev_pos.shape)
-  prev_acc = np.zeros(prev_pos.shape)
-  poss += [prev_pos]
-  vels += [prev_vel]
-  accs += [prev_acc]
-
-  # Select boxes
-  bboxes[:,2] -= bboxes[:,0]
-  bboxes[:,3] -= bboxes[:,1]
-  colors = [(np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255)) for x in range(len(bboxes))]
-  print('Selected bounding boxes {}'.format(bboxes))
-
-  yolo = False
-  frame_skip = 1
-  t = 0
-  while video.isOpened():
-    t+=1
-
-    # Read a new frame
+    # Read first frame
     ret, frame = video.read()
-    if ret==False:
-       break 
+    if not ret:
+        print("Cannot read video file")
+        sys.exit()
 
-    if (t%frame_skip != 0):
-      continue
-    
-    # Start timer
-    timer = cv2.getTickCount()
+    # Initialize the YOLO object detecting
+    bbGetter = yoloBBs()
 
-    pos = prev_pos + prev_vel
-    vel = prev_vel #+ prev_acc
-    acc = prev_acc
+    # Initialize
+    bboxes = bbGetter.getBBs(frame)
+    NUM_CUPS = len(bboxes[bboxes[:, 5] == CUP_ID])
+    prev_pos = np.column_stack([bboxes[:, 0] / 2 + bboxes[:, 2] / 2,
+                                bboxes[:, 1] / 2 + bboxes[:, 3] / 2])
+    prev_vel = np.zeros(prev_pos.shape)
+    prev_acc = np.zeros(prev_pos.shape)
 
-    tbboxes = bbGetter.getBBs(frame)
-    cv2.putText(frame, "Data from Yolo and extrapoladed", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75,(0,0,255),2)
-    for i in range(NUM_CUPS):
-      x_s = bboxes[i][2]
-      y_s = bboxes[i][3]
-      px1 = (int(pos[i][0] - x_s/2), int(pos[i][1]-y_s/2))
-      px2 = (int(pos[i][0] + x_s/2), int(pos[i][1]+y_s/2))
-      cv2.rectangle(frame, px1, px2, colors[i], 2, 1)
+    poss += [prev_pos]
+    vels += [prev_vel]
+    accs += [prev_acc]
 
-    for i, box in enumerate(tbboxes):
-      p1 = (int(box[0]), int(box[1]))
-      p2 = (int(box[2]), int(box[3]))
-      cv2.rectangle(frame, p1, p2, [0,0,0], 2, 1)
-   
+    # Select boxes
+    bboxes[:, 2] -= bboxes[:, 0]
+    bboxes[:, 3] -= bboxes[:, 1]
+    colors = [(np.random.randint(0, 255), np.random.randint(0, 255),
+               np.random.randint(0, 255)) for x in range(len(bboxes))]
 
-    yoled = False
-    if tbboxes.any() and len(tbboxes[tbboxes[:,5]==CUP_ID]) == NUM_CUPS:
-      yoled = True
-      yolo_pos = np.column_stack([tbboxes[:,0]/2 + tbboxes[:,2]/2,tbboxes[:,1]/2 + tbboxes[:,3]/2])
+    # Read the video frame by frame
+    while video.isOpened():
 
-      D = np.zeros((NUM_CUPS, NUM_CUPS), dtype="float32")
-      for i in range(NUM_CUPS):
-        for j in range(NUM_CUPS):
-          D[i, j] = np.linalg.norm(yolo_pos[i]-yolo_pos[j])
-      threshold = 10
-      if (D+np.eye(NUM_CUPS)*2*threshold < threshold).any():
-        yoled = False
-      else:
-        bboxes = tbboxes
-        bboxes[:,2] -= bboxes[:,0]
-        bboxes[:,3] -= bboxes[:,1]
-        C = np.zeros((NUM_CUPS, NUM_CUPS), dtype="float32")
-        for i in range(NUM_CUPS):
-          for j in range(NUM_CUPS):
-            C[i, j] = np.linalg.norm(yolo_pos[i]-pos[j])
-        
-        matched = np.zeros((2, NUM_CUPS), dtype=int)
-        boxes = np.zeros([NUM_CUPS,4])
-        # Get best unique matches (do not match two predictions to one cup)
-        for (a, b) in zip(*np.unravel_index(np.argsort(C, axis=None), C.shape)):
-          if matched[0, a] or matched[1, b]:
-            continue
-          matched[0, a] = 1
-          matched[1, b] = 1
-          boxes[b] = bboxes[a][0:4]
+        # Read a new frame
+        ret, frame = video.read()
+        if not ret:
+            break
 
-    if yoled:
-      boxes = np.array(boxes).astype(float)
-      pos = np.column_stack([boxes[:,0] + boxes[:,2]/2,boxes[:,1] + boxes[:,3]/2])
-      vel = (pos - prev_pos)*ALPHA_V + (1-ALPHA_V)*prev_vel # prev_vel*0.05 + 0.95*(pos - prev_pos)
-      acc = (vel - prev_vel)*ALPHA_A + (1-ALPHA_A)*prev_acc
-    
-    poss += [pos]
-    vels += [vel]
-    accs += [acc]
+        # Update physical prediction
+        pos = prev_pos + prev_vel
+        if USE_ACC:
+            vel = prev_vel + prev_acc
+        else:
+            vel = prev_vel
+        acc = prev_acc
 
+        # Get boudning boxes using YOLO
+        tbboxes = bbGetter.getBBs(frame)
 
-    # Display result
-    cv2.imshow("MultiTracking", frame)
+        if visualize:
+            cv2.putText(frame, "Data from Yolo and extrapoladed", (100, 80),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
-    cv2.waitKey(1)
-    prev_vel = vel
-    prev_pos = pos
-    prev_acc = acc
+            for i in range(NUM_CUPS):
+                x_s = bboxes[i][2]
+                y_s = bboxes[i][3]
+                px1 = (int(pos[i][0] - x_s / 2), int(pos[i][1] - y_s / 2))
+                px2 = (int(pos[i][0] + x_s / 2), int(pos[i][1] + y_s / 2))
+                cv2.rectangle(frame, px1, px2, colors[i], 2, 1)
 
+            for i, box in enumerate(tbboxes):
+                p1 = (int(box[0]), int(box[1]))
+                p2 = (int(box[2]), int(box[3]))
+                cv2.rectangle(frame, p1, p2, [0, 0, 0], 2, 1)
 
-  
+        yolo_found = False
+        # Check whether yolo found all cups
+        if tbboxes.any() and len(tbboxes[tbboxes[:, 5] == CUP_ID]) == NUM_CUPS:
+            # Calculate centroid of the bounding box found by YOLO
+            yolo_pos = np.column_stack([tbboxes[:, 0] / 2 + tbboxes[:, 2] / 2,
+                                        tbboxes[:, 1] / 2 + tbboxes[:, 3] / 2])
+
+            # Calculate distance between yolo detections
+            # - this is used to filter out frames where yolo detects
+            #   the same cup twice
+            D = np.zeros((NUM_CUPS, NUM_CUPS), dtype="float32")
+            for i in range(NUM_CUPS):
+                for j in range(NUM_CUPS):
+                    D[i, j] = np.linalg.norm(yolo_pos[i] - yolo_pos[j])
+            threshold = 10
+            if (D + np.eye(NUM_CUPS) * 2 * threshold < threshold).any():
+                # YOLO detected one object twice
+                yolo_found = False
+            else:
+                # All detections are unique
+                yolo_found = True
+                bboxes = tbboxes
+
+                # Update boxes from # (x1, y1, x2, y2) to (x1, y1, width, height)
+                bboxes[:, 2] -= bboxes[:, 0]
+                bboxes[:, 3] -= bboxes[:, 1]
+
+                # Match the new detected boxes to the previous ones
+                C = np.zeros((NUM_CUPS, NUM_CUPS), dtype="float32")
+                for i in range(NUM_CUPS):
+                    for j in range(NUM_CUPS):
+                        C[i, j] = np.linalg.norm(yolo_pos[i] - pos[j])
+
+                matched = np.zeros((2, NUM_CUPS), dtype=int)
+                boxes = np.zeros([NUM_CUPS, 4])
+
+                # Get best unique matches (do not match two predictions to one cup)
+                for (a, b) in zip(*np.unravel_index(np.argsort(C, axis=None), C.shape)):
+                    if matched[0, a] or matched[1, b]:
+                        continue
+                    matched[0, a] = 1
+                    matched[1, b] = 1
+                    boxes[b] = bboxes[a][0:4]
+
+        if yolo_found:
+            boxes = np.array(boxes).astype(float)
+            # (x1, y1, width, height) to centroid
+            pos = np.column_stack([boxes[:, 0] + boxes[:, 2] / 2,
+                                   boxes[:, 1] + boxes[:, 3] / 2])
+
+            # Update velocity and acceleration of the cups
+            # from position differences
+            vel = (pos - prev_pos) * ALPHA_V + (1 - ALPHA_V) * prev_vel
+            acc = (vel - prev_vel) * ALPHA_A + (1 - ALPHA_A) * prev_acc
+
+        # Append the values
+        poss += [pos]
+        vels += [vel]
+        accs += [acc]
+
+        # Display result
+        if visualize:
+            cv2.imshow("YOLO - PH + EMA", frame)
+            cv2.waitKey(1)
+
+        prev_vel = vel
+        prev_pos = pos
+        prev_acc = acc
+
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--video_path", type=str ,default="data/video01.mp4")
-  parser.add_argument("--tracker_type", type=str ,default="KCF")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video_path", type=str, default="data/video01.mp4")
 
-  args = parser.parse_args()
-  run_tracking(args.video_path, args.tracker_type)
+    args = parser.parse_args()
+    run_tracking(args.video_path, True)
