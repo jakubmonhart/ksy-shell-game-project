@@ -19,6 +19,7 @@ Download dataset to `data/` using https://owncloud.cesnet.cz/index.php/s/rhwg0rC
 
 # Usage
 YoloV5 + Deep Sort:
+
 `python3 deep_sort_track.py --source ../temporary/ksy-shell-game-project/data/001_higher_slow_3_0.mp4 --show-vid`
 
 # _**DEPRECATED**_
