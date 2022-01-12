@@ -6,11 +6,16 @@ import numpy as np
 from getBBs import yoloBBs
 
 # Method parameters
-ALPHA_V = 0.8       # EMA constant for VEL
+ALPHA_V = 0.7       # EMA constant for VEL
 ALPHA_A = ALPHA_V   # EMA constant for ACC
 CUP_ID = 41         # "cup" in yolo output
 BALL_ID = 32        # "ball" in yolo output
-USE_ACC = False     # Whether accuracy should be used
+USE_ACC = False     # Whether acceleration should be used
+
+# Minimal number of frames between start and end
+FINAL_BALL_SAFE_TIMEZONE = 30
+# Number of frames in which the ball position is evaluated
+FINAL_BALL_EVALUATION_ZONE = 10
 
 
 def run_tracking(video_path: str, visualize: bool = False):
@@ -28,6 +33,7 @@ def run_tracking(video_path: str, visualize: bool = False):
 
     # Read first frame
     ret, frame = video.read()
+    init_frame = np.copy(frame)
     if not ret:
         print("Cannot read video file")
         sys.exit()
@@ -53,6 +59,13 @@ def run_tracking(video_path: str, visualize: bool = False):
     colors = [(np.random.randint(0, 255), np.random.randint(0, 255),
                np.random.randint(0, 255)) for x in range(len(bboxes))]
 
+    
+    # Variables for evaluating of results
+    init_cup = None
+    fin_ball = None
+    init_cup_frame = 0
+    fin_cup_frame = 0
+
     # Read the video frame by frame
     while video.isOpened():
 
@@ -71,6 +84,23 @@ def run_tracking(video_path: str, visualize: bool = False):
 
         # Get boudning boxes using YOLO
         tbboxes = bbGetter.getBBs(frame)
+        
+        # Contains ball
+        if tbboxes.any() and len(tbboxes[tbboxes[:, 5] == BALL_ID]) == 1:
+            ball_bb = tbboxes[tbboxes[:, 5] == BALL_ID][0]
+
+            # Haven't found intial cup yet
+            if init_cup is None:
+                tposs = np.array(poss)
+                # Select the cup closest to the ball
+                # (use average over multiple frames to avoid glitches)
+                init_cup = np.argmin(abs(tposs[:, :, 0].mean(axis=0) - (ball_bb[2] + ball_bb[0]) / 2))
+                init_cup_frame = len(poss) - 1
+
+            # found initial cup and "safe zone" passed
+            elif len(poss) + 1 - init_cup_frame > FINAL_BALL_SAFE_TIMEZONE:
+                fin_ball = np.copy(ball_bb)
+                fin_cup_frame = len(poss) - 1
 
         if visualize:
             cv2.putText(frame, "Data from Yolo and extrapoladed", (100, 80),
@@ -109,7 +139,7 @@ def run_tracking(video_path: str, visualize: bool = False):
             else:
                 # All detections are unique
                 yolo_found = True
-                bboxes = tbboxes
+                bboxes = tbboxes[tbboxes[:, 5] == CUP_ID]
 
                 # Update boxes from # (x1, y1, x2, y2) to (x1, y1, width, height)
                 bboxes[:, 2] -= bboxes[:, 0]
@@ -156,7 +186,31 @@ def run_tracking(video_path: str, visualize: bool = False):
         prev_vel = vel
         prev_pos = pos
         prev_acc = acc
+    
+    # evaluate results
 
+    ret = []
+    if init_cup is None or fin_ball is None:  # no ball found, cannot evaluate results
+        if visualize:
+            cv2.putText(init_frame, f"Ball not detected!", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,255) ,2)
+        ret = (0, 0)
+    else:
+        tposs = np.array(poss)
+        fin_cup = np.argmin(abs(tposs[fin_cup_frame-FINAL_BALL_EVALUATION_ZONE:,:,0].mean(axis=0) - (fin_ball[2] + fin_ball[0])/2))
+        if visualize:
+            cv2.putText(init_frame, f"Ball started under cup {init_cup}.", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[init_cup],2)
+            cv2.putText(init_frame, f"And ended under cup {fin_cup}.", (100,110), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[fin_cup],2)
+    
+    if visualize:
+        cv2.imshow("MultiTracking", init_frame)
+        cv2.waitKey(3000)
+
+    if fin_cup == init_cup:
+        ret = (1,1)
+    else:
+        ret= (1,0)
+
+    return ret
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

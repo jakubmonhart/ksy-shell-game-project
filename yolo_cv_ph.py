@@ -6,7 +6,7 @@ import numpy as np
 from getBBs import yoloBBs
 
 # Method parameters
-ALPHA_V = 0.8       # EMA constant for VEL
+ALPHA_V = 0.7       # EMA constant for VEL
 ALPHA_A = ALPHA_V   # EMA constant for ACC
 CUP_ID = 41         # "cup" in yolo output
 BALL_ID = 32        # "ball" in yolo output
@@ -36,7 +36,7 @@ def run_tracking(video_path: str, tracker_type: str, visualize: bool = False):
         print("Error opening video file")
         sys.exit()
 
-    # Read until frame.
+    # Read first frame.
     ret, frame = video.read()
     init_frame = np.copy(frame)
     if not ret:
@@ -227,26 +227,26 @@ def run_tracking(video_path: str, tracker_type: str, visualize: bool = False):
         prev_acc = acc
 
     # evaluate results
+    ret = []
+    if init_cup is None or fin_ball is None:  # no ball found, cannot evaluate results
+        if visualize:
+            cv2.putText(init_frame, f"Ball not detected!", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,255) ,2)
+        ret = (0, 0)
+    else:
+        tposs = np.array(poss)
+        fin_cup = np.argmin(abs(tposs[fin_cup_frame-FINAL_BALL_EVALUATION_ZONE:,:,0].mean(axis=0) - (fin_ball[2] + fin_ball[0])/2))
+        if visualize:
+            cv2.putText(init_frame, f"Ball started under cup {init_cup}.", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[init_cup],2)
+            cv2.putText(init_frame, f"And ended under cup {fin_cup}.", (100,110), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[fin_cup],2)
+    
     if visualize:
-        if init_cup is None or fin_ball is None:  # no ball found, cannot evaluate results
-            cv2.putText(init_frame, f"Ball not detected!", (100, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
-        else:
-            tposs = np.array(poss)
-            fin_cup = np.argmin(abs(tposs[fin_cup_frame - FINAL_BALL_EVALUATION_ZONE:,
-                                          :, 0].mean(axis=0) - (fin_ball[2] + fin_ball[0]) / 2))
-            cv2.putText(init_frame, f"Ball started under cup {init_cup}.", (
-                100, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[init_cup], 2)
-            cv2.putText(init_frame, f"And ended under cup {fin_cup}.", (
-                100, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[fin_cup], 2)
-
         cv2.imshow("MultiTracking", init_frame)
         cv2.waitKey(3000)
 
     if fin_cup == init_cup:
-        ret = (1, 1)
+        ret = (1,1)
     else:
-        ret = (1, 0)
+        ret= (1,0)
 
     return ret
 
