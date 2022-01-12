@@ -83,7 +83,7 @@ def run_tracking(video_path: str, visualize: bool = False):
 
         # Get boudning boxes using YOLO
         tbboxes = bbGetter.getBBs(frame)
-        
+
         # Contains ball
         if tbboxes.any() and len(tbboxes[tbboxes[:, 5] == BALL_ID]) == 1:
             ball_bb = tbboxes[tbboxes[:, 5] == BALL_ID][0]
@@ -215,6 +215,7 @@ def run_tracking(video_path: str, visualize: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video_path", type=str, default="data/video01.mp4")
+    parser.add_argument("--show_vid", type=str, action="store_true")
 
     args = parser.parse_args()
-    run_tracking(args.video_path, True)
+    run_tracking(args.video_path, show_vid)

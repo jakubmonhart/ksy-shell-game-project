@@ -18,7 +18,7 @@ FINAL_BALL_SAFE_TIMEZONE = 30
 FINAL_BALL_EVALUATION_ZONE = 10
 
 
-def run_tracking(video_path: str, tracker_type: str, visualize: bool = False):
+def run_tracking(video_path: str, tracker_type: str = "KCF", visualize: bool = False):
     # Value history
     vels = []
     poss = []
@@ -255,6 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video_path", type=str, default="data/video01.mp4")
     parser.add_argument("--tracker_type", type=str, default="KCF")
+    parser.add_argument("--show_vid", type=str, action="store_true")
 
     args = parser.parse_args()
-    run_tracking(args.video_path, args.tracker_type, True)
+    run_tracking(args.video_path, args.tracker_type, show_vid)
