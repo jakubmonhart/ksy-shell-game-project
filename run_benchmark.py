@@ -1,14 +1,14 @@
 import os
 import pandas as pd
 
-from yolo_cv import run_tracking;     method = "yolo_cv"
-# from yolo_cv_ph import run_tracking;  method = "yolo_cv_ph"
+# from yolo_cv import run_tracking;     method = "yolo_cv"
+from yolo_cv_ph import run_tracking;  method = "yolo_cv_ph"
 # from yolo_ph_ema import run_tracking; method = "yolo_ph_ema"
 # from yolo_ph_ma import run_tracking;  method = "yolo_ph_ma"
 
 
 data_dir = "data/"
-output_dir = "output/benchmark/"
+output_dir = "output"
 
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
             continue
 
         # 'config' contains [id, camera, speed, number_of_shuffles, cup]
-        detected, solved = run_tracking(f"{data_dir}/{filename}", False)
+        detected, solved = run_tracking(f"{data_dir}/{filename}")
 
         # Append results
         for i in range(5):
@@ -36,6 +36,7 @@ if __name__ == "__main__":
         results["detected"].append(detected)
         results["solved"].append(solved)
 
+
     # Build the dataframe and save it to csv
     df = pd.DataFrame.from_dict(results).set_index("id")
-    df.to_csv(f"{output_dir}/{method}/test.csv")
+    df.to_csv(f"{output_dir}/{method}.csv")
