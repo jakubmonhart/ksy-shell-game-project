@@ -11,6 +11,9 @@ ALPHA_A = ALPHA_V
 CUP_ID = 41
 BALL_ID = 32
 
+FINAL_BALL_SAFE_TIMEZONE = 30
+FINAL_BALL_EVALUATION_ZONE = 10
+
 def run_tracking(video_path, tracker_type):
   vels = []
   poss = []  
@@ -29,6 +32,7 @@ def run_tracking(video_path, tracker_type):
 
   # Read until frame.
   ret, frame = video.read()
+  init_frame = np.copy(frame)
   if ret==False:
     print("Cannot read video file")
     sys.exit()
@@ -60,6 +64,13 @@ def run_tracking(video_path, tracker_type):
   yolo = False
   frame_skip = 1
   t = 0
+
+  # variables for results evaluating
+  init_cup = None
+  fin_ball = None
+  init_cup_frame = 0
+  fin_cup_frame = 0
+
   while video.isOpened():
     t+=1
 
@@ -70,6 +81,18 @@ def run_tracking(video_path, tracker_type):
 
     if (t%frame_skip != 0):
       continue
+
+    tbboxes = bbGetter.getBBs(frame)
+    if tbboxes.any() and len(tbboxes[tbboxes[:,5]==BALL_ID])==1: #contains on ball
+      ball_bb = tbboxes[tbboxes[:,5]==BALL_ID][0] 
+      if init_cup is None: # not found intial cup yet
+        tposs = np.array(poss)
+        init_cup = np.argmin(abs(tposs[:,:,0].mean(axis=0) - (ball_bb[2] + ball_bb[0])/2))
+        init_cup_frame = len(poss)-1
+      elif len(poss)+1 - init_cup_frame > FINAL_BALL_SAFE_TIMEZONE: # found initial cup and "safe zone" passed
+        fin_ball = np.copy(ball_bb)
+        fin_cup_frame = len(poss)-1
+        
     
     # Start timer
     timer = cv2.getTickCount()
@@ -102,7 +125,7 @@ def run_tracking(video_path, tracker_type):
         cv2.rectangle(frame, p1, p2, colors[i], 2, 1)
 
     if not tracking:
-      tbboxes = bbGetter.getBBs(frame)
+      #tbboxes = bbGetter.getBBs(frame)
       cv2.putText(frame, "Data from Yolo and extrapoladed", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75,(0,0,255),2)
       for i in range(NUM_CUPS):
         x_s = bboxes[i][2]
@@ -152,8 +175,6 @@ def run_tracking(video_path, tracker_type):
     vels += [vel]
     accs += [acc]
 
-
-
     # Calculate Frames per second (FPS)
     fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
 
@@ -177,6 +198,29 @@ def run_tracking(video_path, tracker_type):
     prev_vel = vel
     prev_pos = pos
     prev_acc = acc
+  
+  # evaluate results
+  ret = []
+  if init_cup is None or fin_ball is None:  # no ball found, cannot evaluate results
+    cv2.putText(init_frame, f"Ball not detected!", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,255) ,2)
+    ret = (0, 0)
+  else:
+    tposs = np.array(poss)
+    fin_cup = np.argmin(abs(tposs[fin_cup_frame-FINAL_BALL_EVALUATION_ZONE:,:,0].mean(axis=0) - (fin_ball[2] + fin_ball[0])/2))
+    cv2.putText(init_frame, f"Ball started under cup {init_cup}.", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[init_cup],2)
+    cv2.putText(init_frame, f"And ended under cup {fin_cup}.", (100,110), cv2.FONT_HERSHEY_SIMPLEX, 0.75, colors[fin_cup],2)
+  
+  cv2.imshow("MultiTracking", init_frame)
+
+  cv2.waitKey(3000)
+
+  if fin_cup == init_cup:
+    ret = (1,1)
+  else:
+    ret= (1,0)
+
+  return ret
+
 
   
 if __name__ == "__main__":
@@ -185,4 +229,4 @@ if __name__ == "__main__":
   parser.add_argument("--tracker_type", type=str ,default="KCF")
 
   args = parser.parse_args()
-  run_tracking("/home/ondin/Dokumenty/CTU/7_term/KSY/ksy-shell-game-project/data/003_higher_slow_3_2.mp4", args.tracker_type)
+  run_tracking("/home/ondin/Dokumenty/CTU/7_term/KSY/ksy-shell-game-project/data/108_low_fast_10_2.mp4", args.tracker_type)
