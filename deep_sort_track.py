@@ -81,7 +81,7 @@ class CupDetector:
           self.ball_start = pos
 
         # Detected final ball position
-        if ((self.ball_start is not None) and (self.ball_count > 60)):
+        if ((self.ball_start is not None) and (self.ball_count > 30)):
           self.ball_end = pos
           # Decide under which cup the ball is right now (at the end of the game)
           for cup_id in self.cups.keys():
@@ -109,7 +109,6 @@ class CupDetector:
       # Cup detected
       if (self.ball_start is not None) and (det[5] == CUP_CLASS):
         cup_id = det[4]
-        self.ball_count
 
         # Not yet decided, under which cup the ball was at the start
         if (self.cup_with_ball == -1):
@@ -117,6 +116,7 @@ class CupDetector:
             self.cup_with_ball = cup_id
             self.message = 'initial position of ball detected under cup {}'.format(cup_id)
             self.message_count = 0
+            self.ball_count = 0
 
         if cup_id not in self.cups.keys(): # New cup detected - potentially some cup that was previously lost
           cup = Cup(cup_id, pos)
