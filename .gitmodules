@@ -1,3 +1,6 @@
 [submodule "deep_sort/deep/reid"]
 	path = deep_sort/deep/reid
 	url = git@github.com:KaiyangZhou/deep-person-reid.git
+[submodule "yolov5"]
+	path = yolov5
+	url = git@github.com:ultralytics/yolov5.git
