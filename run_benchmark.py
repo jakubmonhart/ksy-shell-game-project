@@ -8,7 +8,7 @@ from yolo_cv_ph import run_tracking;  method = "yolo_cv_ph"
 
 
 data_dir = "data/"
-output_dir = "output"
+output_dir = "benchmark-results"
 
 
 if __name__ == "__main__":
