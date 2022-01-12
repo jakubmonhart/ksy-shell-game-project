@@ -7,7 +7,9 @@ v = [0, .15, .4, .5, 0.6, .9, 1.]
 l = list(zip(v, c))
 cmap = LinearSegmentedColormap.from_list('rg', l, N=256)
 
-df = pd.read_csv("yolo_cv_ph.csv", index_col="id")
+method = "yolo_ph_ema"
+
+df = pd.read_csv(f"benchmark-results//{method}.csv", index_col="id")
 
 y = ["slow", "normal", "fast"]
 x = ["low", "medium", "high", "higher"]
@@ -27,7 +29,7 @@ sns.heatmap(temp_df, cmap=cmap, vmin=0.0, vmax=1.0, annot=True, square=True, fmt
 # fig.suptitle('test title', fontsize=12)
 plt.ylabel("Camera angle")
 plt.xlabel("Shuffle speed")
-plt.savefig("yolo_cv_ph.pdf")
+plt.savefig(f"{method}.pdf")
 
 
 # Divide by number of shuffles
