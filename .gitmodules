@@ -1,0 +1,3 @@
+[submodule "deep_sort/deep/reid"]
+	path = deep_sort/deep/reid
+	url = git@github.com:KaiyangZhou/deep-person-reid.git
