@@ -1,9 +1,27 @@
-## Assignment
+# Assignment
 **Vytvořte set videí (reálných/simulace) se hrou skořápky. Poté najděte algoritmus, který hru z videí dokáže vyřešit (uhodnout, kde je schovaný míček)**
 Úloha zaměřená na pozornost. Vytvořte si set např. 10 videí, ve kterých je prezentována    hra skořápky s různou obtížností (danou délkou míchání). Poté zkuste vytvořit/natrénovat algoritmus, který dokáže z videa odhadnout, pod kterou skořápkou (kalíškem, nádobkou) se skrývá hledaný objekt. Konkrétní forma hry je na vás, může s kalíšky hýbat člověk nebo se mohou hýbat samy. Barvy, rychlost pohybu atd. jsou libovolné. Jediná podmínka je, že všechny tři kalíšky musí být stejné. Úspěšnost algoritmu ověřte na všech videích.  Zamyslete se, jak tuto úlohu zpracovává lidský mozek a v čem se tento mechanismus liší od vašeho řešení. 
 Odkazy: https://cs.wikipedia.org/wiki/Sko%C5%99%C3%A1pky, https://cw.fel.cvut.cz/b201/_media/courses/a6m33ksy/prezentace3_2014ks.pdf
 Doporučené nástroje, knihovny apod.: OpenCV, Tensorflow
 
+# Installation
+1. Clone the repository recursively:
+`git clone --recurse-submodules https://github.com/mikel-brostrom/Yolov5_DeepSort_Pytorch.git`
+
+If you already cloned and forgot to use `--recurse-submodules` you can run `git submodule update --init`
+
+2. Make sure that you fulfill all the requirements: Python 3.8 or later with all requirements.txt dependencies installed.
+To install, run:
+`pip install -r requirements.txt`
+
+# Dataset
+Download dataset to `data/` using https://owncloud.cesnet.cz/index.php/s/rhwg0rC2Bso8dL3.
+
+# Usage
+YoloV5 + Deep Sort:
+`python3 deep_sort_track.py --source ../temporary/ksy-shell-game-project/data/001_higher_slow_3_0.mp4 --show-vid`
+
+# _**DEPRECATED**_
 
 ## Object tracking process
 - Detect objects.
