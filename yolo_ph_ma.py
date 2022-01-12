@@ -3,7 +3,7 @@ import sys
 import argparse
 import numpy as np
 
-from yolov5.getBBs import yoloBBs
+from getBBs import yoloBBs
 
 # Method parameters
 MA_WINDOW = 5       # moving average window size

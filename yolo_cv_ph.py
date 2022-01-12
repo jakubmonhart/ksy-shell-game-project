@@ -3,7 +3,7 @@ import numpy as np
 import sys
 import argparse
 import matplotlib.pyplot as plt
-from yolov5.getBBs import yoloBBs
+from getBBs import yoloBBs
 import numpy as np 
 
 ALPHA_V = 0.8
@@ -142,7 +142,7 @@ def run_tracking(video_path, tracker_type):
         cv2.imshow("MultiTracking", frame)
 
       if tbboxes.any() and len(tbboxes[tbboxes[:,5]==CUP_ID]) == NUM_CUPS:
-        bboxes = tbboxes
+        bboxes = tbboxes[tbboxes[:,5]==CUP_ID]
         yolo_pos = np.column_stack([bboxes[:,0]/2 + bboxes[:,2]/2,bboxes[:,1]/2 + bboxes[:,3]/2])
         bboxes[:,2] -= bboxes[:,0]
         bboxes[:,3] -= bboxes[:,1]
@@ -229,4 +229,4 @@ if __name__ == "__main__":
   parser.add_argument("--tracker_type", type=str ,default="KCF")
 
   args = parser.parse_args()
-  run_tracking("/home/ondin/Dokumenty/CTU/7_term/KSY/ksy-shell-game-project/data/108_low_fast_10_2.mp4", args.tracker_type)
+  run_tracking(args.video_path, args.tracker_type)

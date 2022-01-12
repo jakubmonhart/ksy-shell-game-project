@@ -3,7 +3,7 @@ import sys
 import argparse
 import numpy as np
 
-from yolov5.getBBs import yoloBBs
+from getBBs import yoloBBs
 
 
 def run_tracking(video_path: str, tracker_type: str, visualize: bool = False):

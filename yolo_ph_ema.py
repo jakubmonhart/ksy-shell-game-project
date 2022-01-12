@@ -3,7 +3,7 @@ import sys
 import argparse
 import numpy as np
 
-from yolov5.getBBs import yoloBBs
+from getBBs import yoloBBs
 
 # Method parameters
 ALPHA_V = 0.8       # EMA constant for VEL
